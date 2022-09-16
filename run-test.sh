@@ -1,0 +1,11 @@
+python -m torch.distributed.launch --nproc_per_node=1 main_small-patch.py \
+       -a efficientnet_b1 \
+       -k resnet50 \
+       --teacher_ssl swav \
+       --distill ~/clover_shared/pretrained_weights/seed/distilled_students/r50_simclr_200ep_pretrain.pth.tar \
+       --lr 0.03 \
+       --batch-size 16 \
+       --temp 0.2 \
+       --workers 4 \
+       --output ~/clover_shared/seed-outputs/run-1/ \
+       --data ~/clover_shared/datasets/msl-labeled-data-set-v2.1/train-set-v2.1.txt

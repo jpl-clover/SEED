@@ -62,6 +62,7 @@ def main(args):
     assert args.teacher_arch in models.__dict__
 
     # hidden_dim: resnet50-2048, resnet50w4-8192, resnet50w5-10240
+    swav_mlp = 2048
     if args.teacher_arch == 'swav_resnet50':
         swav_mlp = 2048
     elif args.teacher_arch == 'swav_resnet50w2':
@@ -176,7 +177,8 @@ def main(args):
             summary_writer.add_scalar('train_loss', loss, epoch)
             summary_writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
 
-        if dist.get_rank() == 0:
+        #if dist.get_rank() == 0:
+        if True:
 
             file_str = 'Teacher_{}_T-Epoch_{}_Student_{}_distill-Epoch_{}-checkpoint_{:04d}.pth.tar'\
                 .format(args.teacher_ssl, args.epochs, args.student_arch, args.teacher_arch, epoch)
@@ -246,6 +248,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args, logger):
 
             logit, label, s_logit, s_label = model(image=images, small_image=small_patches)
             loss = criterion(logit, label) + criterion(s_logit, s_label)
+            #print("---")
+            #print(logit, label, s_logit, s_label)
+            #print(loss)
 
         losses.update(loss.item(), images[0].size(0))
 

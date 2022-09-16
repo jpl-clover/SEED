@@ -32,8 +32,9 @@ class SEED(nn.Module):
         self.student = student(num_classes=dim)
 
         # teacher encoder, SWAV's resnet50w5 does not use BN.
-        self.teacher = teacher(normalize=True, hidden_mlp=swav_mlp, output_dim=dim,
-                               batch_norm=not str(teacher).__contains__('resnet50w5'),)
+        #self.teacher = teacher(normalize=True, hidden_mlp=swav_mlp, output_dim=dim,
+        #                       batch_norm=not str(teacher).__contains__('resnet50w5'),)
+        self.teacher = teacher()
 
         if mlp:
             dim_mlp = self.student.fc.weight.shape[1]
@@ -44,8 +45,11 @@ class SEED(nn.Module):
             param_k.requires_grad = False
 
         # create the queue
-        self.register_buffer("queue", torch.randn(dim, K))
+        queue_init = torch.randn(dim, K)
+        print(queue_init.dtype)
+        self.register_buffer("queue", queue_init)
         self.queue = nn.functional.normalize(self.queue, dim=0)
+        print(queue.dtype)
 
         self.register_buffer("small_queue", torch.randn(dim, K))
         self.small_queue = nn.functional.normalize(self.small_queue, dim=0)
@@ -92,25 +96,39 @@ class SEED(nn.Module):
         s_small_emb = self.student(small_image)  # queries: NxC
         s_small_emb = nn.functional.normalize(s_small_emb, dim=-1)
 
+        s_N, s_E = s_emb.shape
+
         # compute key features
         with torch.no_grad():  # no gradient to keys
 
-            t_emb = self.teacher(image)  # keys: NxC
-            t_small_emb = self.teacher(small_image)  # keys: NxC
+            t_emb       = self.teacher(image)[:,:s_E]  # keys: NxC
+            t_small_emb = self.teacher(small_image)[:,:s_E]  # keys: NxC
 
         # cross-Entropy Loss
-        logit_stu = torch.einsum('nc,ck->nk', [s_emb, self.queue.clone().detach()])
-        logit_tea = torch.einsum('nc,ck->nk', [t_emb, self.queue.clone().detach()])
+        _s = self.queue.clone().detach()
+        _t = self.queue.clone().detach()
+
+        # Queue elements are 16 bit floats, so convert to 32 bit
+        logit_stu = torch.einsum('nc,ck->nk', [s_emb, _s]).float()
+        logit_tea = torch.einsum('nc,ck->nk', [t_emb, _t]).float()
+        
+        #print(torch.get_default_dtype())
+        #print(logit_tea)
+        #print(logit_tea.shape)
 
         logit_s_p = torch.einsum('nc,nc->n', [s_emb, t_emb]).unsqueeze(-1)
         logit_t_p = torch.einsum('nc,nc->n', [t_emb, t_emb]).unsqueeze(-1)
 
         logit_stu = torch.cat([logit_s_p, logit_stu], dim=1)
         logit_tea = torch.cat([logit_t_p, logit_tea], dim=1)
+        
+        #print(logit_tea)
+        #print(logit_tea.shape)
 
         # compute the logit for small-views
-        logit_stu_small = torch.einsum('nc,ck->nk', [s_small_emb, self.small_queue.clone().detach()])
-        logit_tea_small = torch.einsum('nc,ck->nk', [t_small_emb, self.small_queue.clone().detach()])
+        # Queue elements are 16 bit floats, so convert to 32 bit
+        logit_stu_small = torch.einsum('nc,ck->nk', [s_small_emb, self.small_queue.clone().detach()]).float()
+        logit_tea_small = torch.einsum('nc,ck->nk', [t_small_emb, self.small_queue.clone().detach()]).float()
 
         logit_stu_small_pos = torch.einsum('nc,nc->n', [s_small_emb, t_small_emb]).unsqueeze(-1)
         logit_tea_small_pos = torch.einsum('nc,nc->n', [t_small_emb, t_small_emb]).unsqueeze(-1)
@@ -125,11 +143,14 @@ class SEED(nn.Module):
         logit_stu_small /= self.t
         logit_tea_small = nn.functional.softmax(logit_tea_small/self.temp, dim=1)
 
+        #print(logit_tea)
+
         # use just one of the small patches as enqueue samples
         t_small_emb = t_small_emb.view(B, N, self.dim)
 
         # de-queue and en-queue
         self._dequeue_and_enqueue(t_emb, t_small_emb[:, 0].contiguous(), concat=self.dist)
-
+    
+        #logit, label, s_logit, s_label
         return logit_stu, logit_tea, logit_stu_small, logit_tea_small
 
