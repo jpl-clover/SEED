@@ -19,7 +19,8 @@ def parse_args(config=None, **kwargs):
     # add arguments from `config` dictionary into parser, handling boolean args too
     bool_configs = [
         "multiprocessing_distributed",
-        "pretrain",
+        "teacher_weights",
+        "student_weights",
         "cos",
         "mlp",
         "aug_plus",

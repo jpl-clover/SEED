@@ -5,3 +5,5 @@ __pycache__
 **.e
 **.o
 **.slurm
+seed_default_output/*
+wandb/*

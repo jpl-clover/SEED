@@ -26,7 +26,7 @@ model_names = sorted(name for name in models.__dict__
 def main(args):
 
     # set-up the output directory
-    os.makedirs(args.output, exist_ok=True)
+    os.makedirs(args.model_path, exist_ok=True)
 
     if args.distributed:
         torch.cuda.set_device(args.local_rank)
@@ -34,11 +34,15 @@ def main(args):
         cudnn.benchmark = True
 
         # create logger
-        logger = setup_logger(output=args.output, distributed_rank=dist.get_rank(),
-                              color=False, name="SEED")
+        logger = setup_logger(
+            output=args.model_path,
+            distributed_rank=dist.get_rank(),
+            color=False,
+            name="SEED",
+        )
 
         if dist.get_rank() == 0:
-            path = os.path.join(args.output, "config.json")
+            path = os.path.join(args.model_path, "config.json")
             with open(path, 'w') as f:
                 json.dump(vars(args), f, indent=2)
             logger.info("Full config saved to {}".format(path))
@@ -50,7 +54,7 @@ def main(args):
 
     else:
         # create logger
-        logger = setup_logger(output=args.output, color=False, name="SEED")
+        logger = setup_logger(output=args.model_path, color=False, name="SEED")
 
         logger.info('Single GPU mode for debugging.')
 
@@ -104,7 +108,7 @@ def main(args):
 
         # tensorboard
         if dist.get_rank() == 0:
-            summary_writer = SummaryWriter(log_dir=args.output)
+            summary_writer = SummaryWriter(log_dir=args.model_path)
         else:
             summary_writer = None
 
@@ -117,14 +121,18 @@ def main(args):
         optimizer = torch.optim.SGD(model.parameters(), args.lr,  momentum=args.momentum,
                                     weight_decay=args.weight_decay)
 
-        summary_writer = SummaryWriter(log_dir=args.output)
+        summary_writer = SummaryWriter(log_dir=args.model_path)
 
     # load the SSL pre-trained teacher encoder into model.teacher
-    if args.distill:
-        if os.path.isfile(args.distill):
+    if args.teacher_weights:
+        if os.path.isfile(args.teacher_weights):
             model = load_swav_teacher_encoder(args, model, logger, distributed=args.distributed)
 
-            logger.info("=> Teacher checkpoint successfully loaded from '{}'".format(args.distill))
+            logger.info(
+                "=> Teacher checkpoint successfully loaded from '{}'".format(
+                    args.teacher_weights
+                )
+            )
         else:
             logger.info("wrong distillation checkpoint.")
 
@@ -140,8 +148,12 @@ def main(args):
     torch.cuda.empty_cache()
 
     # we use 6 small patches by default
-    train_dataset = Small_Patch_TSVDataset(os.path.join(args.data, 'train.tsv'),
-                                           swav_aug, swav_small_aug, num_patches=6)
+    train_dataset = Small_Patch_TSVDataset(
+        os.path.join(args.dataset_dir, "train.tsv"),
+        swav_aug,
+        swav_small_aug,
+        num_patches=6,
+    )
 
     logger.info('TSV Dataset done.')
 
@@ -183,14 +195,22 @@ def main(args):
             file_str = 'Teacher_{}_T-Epoch_{}_Student_{}_distill-Epoch_{}-checkpoint_{:04d}.pth.tar'\
                 .format(args.teacher_ssl, args.epochs, args.student_arch, args.teacher_arch, epoch)
 
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'arch': args.student_arch,
-                'state_dict': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-            }, is_best=False, filename=os.path.join(args.output, file_str))
+            save_checkpoint(
+                {
+                    "epoch": epoch + 1,
+                    "arch": args.student_arch,
+                    "state_dict": model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                },
+                is_best=False,
+                filename=os.path.join(args.model_path, file_str),
+            )
 
-            logger.info('==============> checkpoint saved to {}'.format(os.path.join(args.output, file_str)))
+            logger.info(
+                "==============> checkpoint saved to {}".format(
+                    os.path.join(args.model_path, file_str)
+                )
+            )
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args, logger):

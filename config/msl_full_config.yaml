@@ -15,13 +15,5 @@ dataset: "MSL"
 dataset_dir: "/home/goh/Documents/CLOVER/data/msl-labeled-data-set-v2.1"
 
 # wandb
-use_wandb: true
+use_wandb: false
 wandb_project: "moco_test"
-
-# model options
-arch: "resnet50"
-pretrain: False
-resume: ""
-model_path: "moco_default_output"  # saves checkpoints to this folder
-
-moco_k: 4096

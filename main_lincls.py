@@ -92,12 +92,16 @@ def main():
     torch.distributed.init_process_group(backend='nccl', init_method='env://')
     cudnn.benchmark = True
 
-    os.makedirs(args.output, exist_ok=True)
+    os.makedirs(args.model_path, exist_ok=True)
     global logger
-    logger = setup_logger(output=args.output, distributed_rank=dist.get_rank(), color=False,
-                          name="SEED Linear Evaluation")
+    logger = setup_logger(
+        output=args.model_path,
+        distributed_rank=dist.get_rank(),
+        color=False,
+        name="SEED Linear Evaluation",
+    )
     if dist.get_rank() == 0:
-        path = os.path.join(args.output, "config.json")
+        path = os.path.join(args.model_path, "config.json")
         with open(path, 'w') as f:
             json.dump(vars(args), f, indent=2)
         logger.info("Full config saved to {}".format(path))
@@ -159,10 +163,12 @@ def main_worker(args, logger):
     assert len(parameters) == 2  # fc.weight, fc.bias
     args.lr_mult = args.batch_size / 256
     args.warmup_epochs = 5
-    optimizer = torch.optim.SGD(parameters,
-                                args.lr_mult * args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+    optimizer = torch.optim.SGD(
+        parameters,
+        args.lr_mult * args.learning_rate,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
+    )
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -180,17 +186,18 @@ def main_worker(args, logger):
 
     # tensorboard
     if dist.get_rank() == 0:
-        summary_writer = SummaryWriter(log_dir=args.output)
+        summary_writer = SummaryWriter(log_dir=args.model_path)
     else:
         summary_writer = None
 
     cudnn.benchmark = True
 
     # Data loading code
-    traintsv = os.path.join(args.data, 'train.tsv')
-    valtsv = os.path.join(args.data, 'test.tsv')
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+    traintsv = os.path.join(args.dataset_dir, "train.tsv")
+    valtsv = os.path.join(args.dataset_dir, "test.tsv")
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    )
 
     train_dataset = TSVDataset(
         traintsv,
@@ -243,13 +250,19 @@ def main_worker(args, logger):
             summary_writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
 
         if dist.get_rank() == 0:
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'arch': args.arch,
-                'state_dict': model.state_dict(),
-                'best_acc1': best_acc1,
-                'optimizer' : optimizer.state_dict(),
-            }, is_best, filename=os.path.join(args.output, 'lincls_checkpoint_{:04d}.pth.tar'.format(epoch)))
+            save_checkpoint(
+                {
+                    "epoch": epoch + 1,
+                    "arch": args.arch,
+                    "state_dict": model.state_dict(),
+                    "best_acc1": best_acc1,
+                    "optimizer": optimizer.state_dict(),
+                },
+                is_best,
+                filename=os.path.join(
+                    args.model_path, "lincls_checkpoint_{:04d}.pth.tar".format(epoch)
+                ),
+            )
             if epoch == args.start_epoch:
                 sanity_check(model.state_dict(), args.pretrained)
 
@@ -446,10 +459,15 @@ class ProgressMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, args):
     """Decay the learning rate based on schedule"""
-    lr = args.lr * args.lr_mult
+    lr = args.learning_rate * args.lr_mult
     if epoch < args.warmup_epochs:
         # warm up
-        lr = args.lr + (args.lr * args.lr_mult - args.lr) / args.warmup_epochs * epoch
+        lr = (
+            args.learning_rate
+            + (args.learning_rate * args.lr_mult - args.learning_rate)
+            / args.warmup_epochs
+            * epoch
+        )
 
     for milestone in args.schedule:
         lr *= 0.1 if epoch >= milestone else 1.

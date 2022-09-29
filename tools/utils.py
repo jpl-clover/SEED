@@ -88,10 +88,15 @@ class ProgressMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, args):
     """Decay the learning rate based on schedule"""
-    lr = args.lr * args.lr_mult
+    lr = args.learning_rate * args.lr_mult
     if epoch < args.warmup_epochs:
         # warm up
-        lr = args.lr + (args.lr * args.lr_mult - args.lr) / args.warmup_epochs * epoch
+        lr = (
+            args.learning_rate
+            + (args.learning_rate * args.lr_mult - args.learning_rate)
+            / args.warmup_epochs
+            * epoch
+        )
     elif args.cos:  # cosine lr schedule
         lr *= 0.5 * (1. + math.cos(math.pi * epoch / args.epochs))
     else:  # stepwise lr schedule
@@ -103,7 +108,7 @@ def adjust_learning_rate(optimizer, epoch, args):
 
 def load_moco_teacher_encoder(args, model, logger, distributed=True):
     "Load the pre-trained teacher encoder model.encoder."
-    checkpoint = torch.load(args.distill)
+    checkpoint = torch.load(args.teacher_weights)
     model_checkpoint = model.state_dict()
 
     if distributed:
@@ -126,7 +131,7 @@ def load_moco_teacher_encoder(args, model, logger, distributed=True):
 
 def load_simclr_teacher_encoder(args, model, logger, distributed=True):
     "Load pre-trained weight from SimCLR"
-    checkpoint = torch.load(args.distill)['model']
+    checkpoint = torch.load(args.teacher_weights)["model"]
     model_checkpoint = model.state_dict()
 
     if distributed:
@@ -148,7 +153,7 @@ def load_simclr_teacher_encoder(args, model, logger, distributed=True):
 
 def load_swav_teacher_encoder(args, model, logger, distributed=True):
     "Load pre-trained weight from SWAV"
-    checkpoint = torch.load(args.distill)
+    checkpoint = torch.load(args.teacher_weights)
     model_checkpoint = model.state_dict()
 
     if distributed:
@@ -195,61 +200,73 @@ def soft_cross_entropy(student_logit, teacher_logit):
 
 
 # ImageNet normalization
-normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
+# normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+#                                  std=[0.229, 0.224, 0.225])
 
 
 # SWAV alike augmentation, which uses different scale for cropping
-swav_aug = transforms.Compose([
-    transforms.RandomResizedCrop(224, scale=(0.14, 1.)),
-    transforms.RandomApply([
-        transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
-    ], p=0.8),
-    transforms.RandomGrayscale(p=0.2),
-    transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    normalize])
-
-swav_small_aug = transforms.Compose([
-        transforms.RandomResizedCrop(96, scale=(0.05, 0.14)),
-        transforms.RandomApply([
-            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
-        ], p=0.8),
+swav_aug = transforms.Compose(
+    [
+        transforms.RandomResizedCrop(224, scale=(0.14, 1.0)),
+        transforms.RandomApply(
+            [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8  # not strengthened
+        ),
         transforms.RandomGrayscale(p=0.2),
         transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        normalize])
+        # normalize
+    ]
+)
+
+swav_small_aug = transforms.Compose(
+    [
+        transforms.RandomResizedCrop(96, scale=(0.05, 0.14)),
+        transforms.RandomApply(
+            [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8  # not strengthened
+        ),
+        transforms.RandomGrayscale(p=0.2),
+        transforms.RandomApply([GaussianBlur([0.1, 2.0])], p=0.5),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        # normalize
+    ]
+)
 
 # MoCo v2's aug: similar to SimCLR https://arxiv.org/abs/2002.05709
-mocov2_aug = transforms.Compose([
-    transforms.RandomResizedCrop(224, scale=(0.2, 1.)),
-    transforms.RandomApply([
-        transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
-    ], p=0.8),
-    transforms.RandomGrayscale(p=0.2),
-    transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    normalize
-])
+mocov2_aug = transforms.Compose(
+    [
+        transforms.RandomResizedCrop(224, scale=(0.2, 1.0)),
+        transforms.RandomApply(
+            [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8  # not strengthened
+        ),
+        transforms.RandomGrayscale(p=0.2),
+        transforms.RandomApply([GaussianBlur([0.1, 2.0])], p=0.5),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        # normalize
+    ]
+)
 
 # MoCo v1's aug: the same as InstDisc https://arxiv.org/abs/1805.01978
-mocov1_aug = transforms.Compose([
-    transforms.RandomResizedCrop(224, scale=(0.2, 1.)),
-    transforms.RandomGrayscale(p=0.2),
-    transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    normalize
-])
+mocov1_aug = transforms.Compose(
+    [
+        transforms.RandomResizedCrop(224, scale=(0.2, 1.0)),
+        transforms.RandomGrayscale(p=0.2),
+        transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        # normalize
+    ]
+)
 
-simclr_aug = transforms.Compose([
-    transforms.RandomResizedCrop(224, scale=(0.2, 1.)),
-    transforms.RandomGrayscale(p=0.2),
-    transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    normalize
-])
+simclr_aug = transforms.Compose(
+    [
+        transforms.RandomResizedCrop(224, scale=(0.2, 1.0)),
+        transforms.RandomGrayscale(p=0.2),
+        transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        # normalize
+    ]
+)

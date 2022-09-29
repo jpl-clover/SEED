@@ -3,7 +3,7 @@ import torch
 from .parse_args import parse_args
 from .set_manual_seed import set_manual_seed
 from .yaml_config_hook import yaml_config_hook
-
+from .init_distributed_mode import init_distributed_mode
 
 # multi-GPU data collector
 @torch.no_grad()

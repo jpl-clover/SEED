@@ -5,12 +5,12 @@ from warnings import warn
 
 import numpy as np
 import torch
-from data_utils.ai4mars import AI4MarsDataset as AI4Mars
-from data_utils.ai4mars import classes as ai4mars_classes
-from data_utils.ai4mars import default_test_sets
-from data_utils.hirise import HiRISEDataset, get_hirise_images_from_file_map
-from data_utils.msl import MSLDataset, get_image_paths_from_file_map
-from data_utils.unlabeled_images import UnlabeledImageDataset
+from .ai4mars import AI4MarsDataset as AI4Mars
+from .ai4mars import classes as ai4mars_classes
+from .ai4mars import default_test_sets
+from .hirise import HiRISEDataset, get_hirise_images_from_file_map
+from .msl import MSLDataset, get_image_paths_from_file_map
+from .unlabeled_images import UnlabeledImageDataset
 from torchvision.datasets import CIFAR10, STL10, ImageNet
 
 
