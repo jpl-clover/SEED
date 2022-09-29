@@ -147,19 +147,21 @@ def main(gpu, args):
                 "Distillation/learning_rate", optimizer.param_groups[0]["lr"], epoch
             )
 
-        if args.global_rank == 0:
+        if args.global_rank == 0 and epoch % 10:
             file_str = 'Teacher_{}_T-Epoch_{}_Student_{}_distill-Epoch_{}-checkpoint_{:04d}.pth.tar'\
                 .format(args.teacher_ssl, args.epochs, args.student_arch, args.teacher_arch, epoch)
 
             save_checkpoint(
                 {
+                    # if resuming from this checkpoint, will start from next epoch
                     "epoch": epoch + 1,
                     "arch": args.student_arch,
+                    "teacher_arch": args.teacher_arch,
                     "state_dict": model.state_dict(),
                     "optimizer": optimizer.state_dict(),
                 },
                 is_best=False,
-                filename=os.path.join(args.model_path, file_str),
+                filename=os.path.join(summary_writer.log_dir, file_str),
             )
 
             logger.info(
@@ -167,6 +169,29 @@ def main(gpu, args):
                     os.path.join(args.model_path, file_str)
                 )
             )
+
+    ## End training - close TB writer add final checkpoint file to wandb
+    if args.global_rank == 0:
+        file_str = "Teacher_{}_T-Epoch_{}_Student_{}_distill-Epoch_{}-checkpoint_{:04d}.pth.tar".format(
+            args.teacher_ssl, args.epochs, args.student_arch, args.teacher_arch, epoch
+        )
+
+        save_checkpoint(
+            {
+                # if resuming from this checkpoint, will start from next epoch
+                "epoch": epoch + 1,
+                "arch": args.student_arch,
+                "teacher_arch": args.teacher_arch,
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            },
+            is_best=False,
+            filename=os.path.join(summary_writer.log_dir, file_str),
+        )
+        summary_writer.close()
+        if "wandb" in sys.modules and args.use_wandb:
+            wandb.save(os.path.join(summary_writer.log_dir, file_str))
+            wandb.finish()
 
 
 def get_train_loader(args):
