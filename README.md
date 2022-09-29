@@ -11,6 +11,11 @@ Implementations for the [__ICLR-2021 paper: SEED: Self-supervised Distillation F
 }
 ```
 
+## Edwin Example Run
+```
+CUDA_VISIBLE_DEVICES=0,1,2,3 python main.py --config config/default_config.yaml --student_arch "mobilenet_v2" --ngpus_per_node 4 --batch_size 64 --dataset_dir ~/Documents/CLOVER/data/msl-labeled-data-set-v2.1/ --use_wandb True --wandb_project "seed_test"
+```
+
 ## Introduction
 
 This paper is concerned with self-supervised learning for small models. <img src="https://user-images.githubusercontent.com/17426159/126873068-ce5ebdce-d821-4a9c-9d94-52585039261e.png" width="330" height="280" align="right"> 
