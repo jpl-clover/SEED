@@ -158,6 +158,8 @@ def get_state_dict_from_tar(
 ):
     if isinstance(pretrained, bool):
         return pretrained, None, None
+    elif isinstance(pretrained, str) and pretrained == "":
+        return False, None, None
     else:
         pretrained, ckpt_path = get_pretrained_path(pretrained)
         if ckpt_path is not None:
@@ -257,8 +259,10 @@ def load_torch_hub_model(model_name, num_classes, pretrained, freeze_enc, init_m
         else:
             init_method(model.classifier.weight)
         final_layer_name = "classifier"
-    elif "efficientnet" in model_name:
-        model.classifier[-1].out_features = num_classes
+    elif "efficientnet" in model_name or "mobilenet" in model_name:
+        model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, num_classes)
+        init_method(model.classifier[-1].weight)
+        model.classifier[-1].bias.data.zero_()
         final_layer_name = "classifier"
     elif "dino" in model_name and "vit" in model_name:
         head = nn.Linear(model.norm.normalized_shape[0], num_classes)
