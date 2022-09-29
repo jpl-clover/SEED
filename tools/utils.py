@@ -119,8 +119,8 @@ def load_moco_teacher_encoder(args, model, logger, distributed=True):
                 model_checkpoint[key.replace('module.encoder_q', 'teacher')] = checkpoint['state_dict'][key]
                 logger.info("Teacher Param {} copyed from =====================> {}"
                             .format(key.replace('module.encoder_q', 'teacher'), key))
-
-    model.load_state_dict(model_checkpoint)
+    # TODO: Edwin, I turned off strict loading throughout this file (defaultly it was on)
+    model.load_state_dict(model_checkpoint, strict=False)
     return model
 
 
@@ -142,7 +142,7 @@ def load_simclr_teacher_encoder(args, model, logger, distributed=True):
             model_checkpoint['teacher.module.' + model_param] = checkpoint[param]
             logger.info(' ============> Teacher {} distilled from {}'.format('module.teacher.' + model_param, param))
 
-    model.load_state_dict(model_checkpoint)
+    model.load_state_dict(model_checkpoint, strict=False)
     return model
 
 
@@ -170,15 +170,15 @@ def load_swav_teacher_encoder(args, model, logger, distributed=True):
                 model_checkpoint[model_key] = checkpoint[key]
                 logger.info('{} loaded.'.format(model_key))
 
-    model.load_state_dict(model_checkpoint)
+    model.load_state_dict(model_checkpoint, strict=False)
     return model
 
 
 def resume_training(args, model, optimizer, logger):
     checkpoint = torch.load(args.resume)
     args.start_epoch = checkpoint['epoch']
-    model.load_state_dict(checkpoint['state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer'])
+    model.load_state_dict(checkpoint['state_dict'], strict=False)
+    optimizer.load_state_dict(checkpoint['optimizer'], strict=False)
     logger.info("=> loaded checkpoint '{}' (epoch {})"
                 .format(args.resume, checkpoint['epoch']))
     del checkpoint

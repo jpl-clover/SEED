@@ -11,6 +11,7 @@ from tools.opts import parse_opt
 import torch.utils.data.distributed
 import torch.backends.cudnn as cudnn
 from tools.dataset import TSVDataset
+from tools.dataset import Small_Patch_TSVDataset
 from tools.logger import setup_logger
 from torch.utils.tensorboard import SummaryWriter
 from tools.utils import simclr_aug, mocov1_aug, mocov2_aug, swav_aug, adjust_learning_rate, \
@@ -202,7 +203,9 @@ def main(args):
             summary_writer.add_scalar('train_loss', loss, epoch)
             summary_writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
 
-        if dist.get_rank() == 0:
+        # TODO: Need to use get_rank() == 0 in multi processed approach
+        #if dist.get_rank() == 0:
+        if True:
 
             file_str = 'Teacher_{}_T-Epoch_{}_Student_{}_distill-Epoch_{}-checkpoint_{:04d}.pth.tar'\
                 .format(args.teacher_ssl, args.epochs, args.student_arch, args.teacher_arch, epoch)

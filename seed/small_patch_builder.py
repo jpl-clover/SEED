@@ -46,10 +46,10 @@ class SEED(nn.Module):
 
         # create the queue
         queue_init = torch.randn(dim, K)
-        print(queue_init.dtype)
         self.register_buffer("queue", queue_init)
         self.queue = nn.functional.normalize(self.queue, dim=0)
-        print(queue.dtype)
+        #print(queue_init.dtype)
+        #print(self.queue.dtype)
 
         self.register_buffer("small_queue", torch.randn(dim, K))
         self.small_queue = nn.functional.normalize(self.small_queue, dim=0)
@@ -107,10 +107,16 @@ class SEED(nn.Module):
         # cross-Entropy Loss
         _s = self.queue.clone().detach()
         _t = self.queue.clone().detach()
+        print(_s.dtype)
+        print(_t.dtype)
 
         # Queue elements are 16 bit floats, so convert to 32 bit
-        logit_stu = torch.einsum('nc,ck->nk', [s_emb, _s]).float()
-        logit_tea = torch.einsum('nc,ck->nk', [t_emb, _t]).float()
+        print(s_emb.dtype)
+        print(t_emb.dtype)
+        logit_stu = torch.einsum('nc,ck->nk', [s_emb, _s])#.float()
+        logit_tea = torch.einsum('nc,ck->nk', [t_emb, _t])#.float()
+        print(logit_stu.dtype)
+        print(logit_tea.dtype)
         
         #print(torch.get_default_dtype())
         #print(logit_tea)

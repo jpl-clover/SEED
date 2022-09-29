@@ -1,2 +1,7 @@
 clover_shared
 __pycache__
+
+**.sh
+**.e
+**.o
+**.slurm

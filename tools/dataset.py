@@ -12,75 +12,6 @@ from PIL import Image
 from tools.tsv_io import TSVFile
 from torch.utils.data import Dataset
 
-
-class TSVDataset(Dataset):
-    """ TSV dataset for ImageNet 1K training
-    """    
-    def __init__(self, tsv_file, transform=None, target_transform=None):
-        self.tsv = TSVFile(tsv_file)
-        self.transform = transform
-        self.target_transform = target_transform
-
-    def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
-        row = self.tsv.seek(index)
-        image_data = base64.b64decode(row[-1])
-        image = Image.open(io.BytesIO(image_data))
-        image = image.convert('RGB')
-        target = int(row[1])
-
-        if self.transform is not None:
-            img = self.transform(image)
-        else:
-            img = image
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-        return img, target
-
-    def __len__(self):
-        return round(self.tsv.num_rows())
-
-
-class Small_Patch_TSVDataset_Legacy(Dataset):
-    """
-        TSV dataset for ImageNet 1K training with jigsaw random crop.
-    """
-    def __init__(self, tsv_file, transform=None, jigsaw_transform=None, num_patches=6):
-        self.tsv = TSVFile(tsv_file)
-        self.transform = transform
-        self.jigsaw_transform = jigsaw_transform
-        self.num_patches = num_patches
-
-    def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
-        row = self.tsv.seek(index)
-        image_data = base64.b64decode(row[-1])
-        image = Image.open(io.BytesIO(image_data))
-        image = image.convert('RGB')
-        img = self.transform(image)
-
-        # Stack small images
-        small_patches = []
-        for img_index in range(self.num_patches):
-            small_patches.extend(
-                self.jigsaw_transform(image).unsqueeze(0))
-
-        return img, torch.stack(small_patches)
-
-    def __len__(self):
-        return round(self.tsv.num_rows())
-
 class DatasetFromFilenamesAndLabels(Dataset):
     def __init__(
             self, 
@@ -142,6 +73,108 @@ class DatasetFromFilenamesAndLabels(Dataset):
             image = np.zeros((224, 224, 3), dtype=np.float32)
             
         return image, self.labels[idx]
+
+class TSVDataset(Dataset):
+    """ TSV dataset for ImageNet 1K training
+    """    
+    def __init__(self, tsv_file, transform=None, target_transform=None):
+        #self.tsv = TSVFile(tsv_file)
+
+        # TODO
+        # Edwin, this is just a hack that essentially returns the MSL dataset within the TSV dataset, meaning that no changes
+        # need to be made in the main line of the SEED repo to get results
+
+        # Load the train, test, validation mapping file
+        fp_msl = "/home/08328/isaacrw/clover_shared/datasets/msl-labeled-data-set-v2.1/"
+        
+        # Use the above class as a helper
+        split = "train"
+        self.dataset = DatasetFromFilenamesAndLabels(
+            f"{fp_msl}/images/",
+            f"{fp_msl}/{split}-set-v2.1.txt",
+            f"{fp_msl}/class_map.csv",
+            verbose=True,
+        )
+
+        self.transform = transform
+        self.target_transform = target_transform
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, target) where target is class_index of the target class.
+        """
+
+        """
+        row = self.tsv.seek(index)
+        image_data = base64.b64decode(row[-1])
+        image = Image.open(io.BytesIO(image_data))
+        image = image.convert('RGB')
+        target = int(row[1])
+
+        if self.transform is not None:
+            img = self.transform(image)
+        else:
+            img = image
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+        """
+        
+        # Load the image and label from the MSL dataset
+        image = self.dataset[index][0]
+        label = self.dataset[index][1]
+
+        if self.transform is not None:
+            img = self.transform(image)
+        else:
+            img = image
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, label
+
+    def __len__(self):
+        #return round(self.tsv.num_rows())
+        return len(self.dataset)
+
+
+class Small_Patch_TSVDataset_Legacy(Dataset):
+    """
+        TSV dataset for ImageNet 1K training with jigsaw random crop.
+    """
+    def __init__(self, tsv_file, transform=None, jigsaw_transform=None, num_patches=6):
+        self.tsv = TSVFile(tsv_file)
+        self.transform = transform
+        self.jigsaw_transform = jigsaw_transform
+        self.num_patches = num_patches
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, target) where target is class_index of the target class.
+        """
+        row = self.tsv.seek(index)
+        image_data = base64.b64decode(row[-1])
+        image = Image.open(io.BytesIO(image_data))
+        image = image.convert('RGB')
+        img = self.transform(image)
+
+        # Stack small images
+        small_patches = []
+        for img_index in range(self.num_patches):
+            small_patches.extend(
+                self.jigsaw_transform(image).unsqueeze(0))
+
+        return img, torch.stack(small_patches)
+
+    def __len__(self):
+        return round(self.tsv.num_rows())
 
 class Small_Patch_TSVDataset(Dataset):
     """
