@@ -75,7 +75,7 @@ def main(gpu, args):
 
     # this is the linear LR scaling rule from "Training ImageNet in 1 hour" by Goyal, ..., Kaiming He
     # "When the batch size is increased by a factor of k, multiply the learning rate by k"
-    args.lr_mult = args.batch_size / 256
+    args.lr_mult = (args.world_size * args.batch_size) / 256
     args.warmup_epochs = 5
     if args.optimizer == "SGD":
         optimizer = torch.optim.SGD(
