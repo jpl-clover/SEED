@@ -328,9 +328,24 @@ def freeze_layers(model, ignore="fc", init_method=None):
             param.requires_grad = False
     # init the fc layer
     if ignore != "":
-        if init_method is None:
-            exec(f"model.{ignore}.weight.data.normal_(mean=0.0, std=0.01)")
-            exec(f"model.{ignore}.bias.data.zero_()")
+        ignore_layer = getattr(model, ignore)
+        if isinstance(ignore_layer, nn.Linear):
+            if init_method is None:
+                ignore_layer.weight.data.normal_(mean=0.0, std=0.01)
+                ignore_layer.bias.data.zero_()
+            else:
+                init_method(ignore_layer.weight)
+                ignore_layer.bias.data.zero_()  #? Check whether we need this
+        elif isinstance(ignore_layer, nn.Sequential):
+            for layer in ignore_layer:
+                if isinstance(layer, nn.Linear):
+                    if init_method is None:
+                        layer.weight.data.normal_(mean=0.0, std=0.01)
+                        layer.bias.data.zero_()
+                    else:
+                        init_method(layer.weight)
+                        layer.bias.data.zero_()  #? Check whether we need this
         else:
-            exec(f"init_method(model.{ignore}.weight)")
-            # exec(f"model.{ignore}.bias.data.zero_()")  #? Check whether we need this
+            raise NotImplementedError(
+                f"Don't know how to init {ignore_layer.__class__.__name__}"
+            )
