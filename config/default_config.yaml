@@ -16,9 +16,9 @@ dist_backend: "nccl"
 gpu: null
 
 # SLURM/Submitit Arguments
-slurm_job_name: "moco"
-comment: "SimCLR run" # for slurm
-job_dir: "slurm_log/moco_%j"  # log_ddp/%j
+slurm_job_name: "SEED"
+comment: "SEED run" # for slurm
+job_dir: "slurm_log/seed_%j"  # log_ddp/%j
 master_addr: "127.0.0.1"  # this is the value used in Janne's implementation
 walltime: 60  # in minutes (max walltime on Longhorn is 2,880 minutes)
 
@@ -70,7 +70,7 @@ queue: 65536  # Note that K needs to be divisible by batch size!!!
 temp: 0.2  # 0.07 for MoCov1  # used to be moco_t in the moco repo
 mlp: True  # use mlp head; True in MoCov2, false in MoCov1
 aug_plus: True  # true by default in MoCov2, false in MoCov1
-distill_t: 1.0e-4  # softmax temp for distillation (default=1.0e-4)
+distill_t: 0.01  # softmax temp for distillation (default=1.0e-4)
 
 # linear eval options
 num_classes: 19
