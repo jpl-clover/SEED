@@ -1,6 +1,6 @@
 clover_shared
 __pycache__
-
+*.txt
 **.sh
 **.e
 **.o

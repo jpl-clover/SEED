@@ -1,0 +1,76 @@
+# default configuration with all args specified
+
+# distributed training/slurm arguments
+nodes: 1
+ngpus_per_node: 1  # number of GPUs per node
+node_rank: -1 # machine nr. in node (0 -- nodes - 1)
+local_rank: -1  # range: (0 -- num_gpus_per_node - 1)
+multiprocessing_distributed: True  # Use DistributedDataProcessing if True
+
+# SLURM options
+workers: 4
+timeout: 3600
+partition: "v100*"
+world_size: -1
+dist_backend: "nccl"
+gpu: null
+
+# SLURM/Submitit Arguments
+slurm_job_name: "moco"
+comment: "SimCLR run" # for slurm
+job_dir: "slurm_log/moco_%j"  # log_ddp/%j
+master_addr: "127.0.0.1"  # this is the value used in Janne's implementation
+walltime: 60  # in minutes (max walltime on Longhorn is 2,880 minutes)
+
+# train options
+seed: null  # setting a seed will set cudnn.deterministic = True, which can slow down training
+batch_size: 32  # this is the batch size per GPU
+image_size: 224
+start_epoch: 0
+epochs: 200
+dataset: "MSL"
+dataset_dir: "~/Documents/CLOVER/data/msl-labeled-data-set-v2.1"
+train_file_map: ""
+test_file_map: ""
+train_pct: 1.0
+num_images: -1
+
+# wandb & tensorboard configs
+use_wandb: False  # whether to use weights and biases
+tensorboard_log_dir: null  # None by default
+wandb_project: "moco"  # WandB project name; unused if use_wandb = False
+wandb_run_id: null
+
+# model options
+arch: "resnet50"
+pretrain: False
+resume: ""
+model_path: "moco_default_output"  # saves checkpoints to this folder
+
+# MoCo recommended LR scaling recipe: https://arxiv.org/abs/1706.02677
+# Rule: "When the minibatch size is multiplied by k, multiply the learning rate by k"
+optimizer: "SGD"
+weight_decay: 1.0e-4
+learning_rate: 0.03
+momentum: 0.9
+cos: True  # cosine lr schedule true for MoCov2; false for MoCov1
+schedule:
+  - 120
+  - 160
+moco_dim: 128
+moco_k: 65536  # Note that K needs to be divisible by batch size!!!
+moco_m: 0.999
+moco_t: 0.2  # 0.07 for MoCov1
+mlp: True  # use mlp head; True in MoCov2, false in MoCov1
+aug_plus: True  # true by default in MoCov2, false in MoCov1
+
+# linear eval options
+num_classes: 19
+logistic_batch_size: 256
+logistic_epochs: 100
+evaluate: false  # not sure what this is for
+logistic_learning_rate: 2
+logistic_schedule: 
+  - 60
+  - 80
+logistic_use_cpu: false  # use CPU to train the logistic classifier
