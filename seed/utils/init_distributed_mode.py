@@ -28,7 +28,12 @@ def init_distributed_mode(gpu, args):
         args.global_rank = job_env.global_rank  # 0 to (num_nodes * gpus_per_node - 1)
         args.world_size = job_env.num_tasks
         args.node_rank = job_env.node
-    except:  # try to use SLURM vars if local_rank and node_rank not specified
+        gpu = args.local_rank
+    except Exception as e:  # try to use SLURM vars if local_rank and node_rank not specified
+        print(
+            f"Ran into exception {e} when loading distributed vars"
+            f"from submitit. Using environment vars instead."
+        )
         if args.local_rank == -1:
             args.local_rank = int(os.environ.get("SLURM_LOCALID", gpu))
         if args.node_rank == -1:
@@ -69,18 +74,19 @@ def init_distributed_mode(gpu, args):
     if args.distributed:
         if "dist_url" not in args:
             args.dist_url = f"tcp://{args.master_addr}:{args.port}"
-        if args.multiprocessing_distributed:
-            # For multiprocessing distributed training, rank needs to be the
-            # global rank among all the processes
-            args.global_rank = (
-                args.node_rank * args.ngpus_per_node + gpu
-            )  # TODO: update parse_args to get ngpus_this_node
+        print(
+            f"Initializing process group on global rank {args.global_rank} "
+            f"on node {args.node_rank}, gpu {args.local_rank} "
+            f"with port {os.environ.get('MASTER_PORT')}"
+        )
         dist.init_process_group(
             backend=args.dist_backend,
             init_method=args.dist_url,
             world_size=args.world_size,
             rank=args.global_rank,
         )
+        print(f"Process initialization completed for global rank {args.global_rank}")
+
         args.workers = int(
             (args.workers + args.ngpus_per_node - 1) / args.ngpus_per_node
         )

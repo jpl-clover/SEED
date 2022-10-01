@@ -7,3 +7,4 @@ __pycache__
 **.slurm
 seed_default_output/*
 wandb/*
+slurm_log/*
