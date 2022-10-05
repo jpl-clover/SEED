@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-from datetime import datetime
 import os
 import shutil
 import sys
 import time
+from datetime import datetime
 
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
@@ -172,7 +172,7 @@ def main(gpu, args):
 
     ## End training - close TB writer add final checkpoint file to wandb
     if args.global_rank == 0:
-        file_str = "Teacher_{}_T-Epoch_{}_Student_{}_distill-Epoch_{}-checkpoint_{:04d}.pth.tar".format(
+        file_str = "Teacher_{}_T-Epoch_{}_Student_{}_distill-Epoch_{}-checkpoint_{:04d}_student_only.pth.tar".format(
             args.teacher_ssl, args.epochs, args.student_arch, args.teacher_arch, epoch
         )
 
@@ -181,9 +181,9 @@ def main(gpu, args):
                 # if resuming from this checkpoint, will start from next epoch
                 "epoch": epoch + 1,
                 "arch": args.student_arch,
-                "teacher_arch": args.teacher_arch,
-                "state_dict": model.state_dict(),
+                "state_dict": model.student.state_dict(),
                 "optimizer": optimizer.state_dict(),
+                "args": vars(args),
             },
             is_best=False,
             filename=os.path.join(summary_writer.log_dir, file_str),
@@ -236,7 +236,8 @@ def setup_tensorboard_and_wandb(args, num_images):
             f"{args.start_epoch}"
             f"-{args.epochs}|"
             f"{args.student_arch}|"
-            f"T{args.teacher_arch}|{args.teacher_weights + '|' if args.teacher_weights else ''}"
+            f"T{args.teacher_arch}|"
+            f"{os.path.basename(args.teacher_weights) + '|' if args.teacher_weights else ''}"
             f"{args.dim}|{args.optimizer}|"
             f"{datetime.now().strftime('%y%m%d-%H%M%S')}"  # timestamp
         )
