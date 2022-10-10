@@ -1,0 +1,76 @@
+# default configuration with all args specified
+
+# distributed training/slurm arguments
+nodes: 1
+ngpus_per_node: 4  # number of GPUs per node
+node_rank: -1 # machine nr. in node (0 -- nodes - 1)
+local_rank: -1  # range: (0 -- num_gpus_per_node - 1)
+multiprocessing_distributed: True  # Use DistributedDataProcessing if True
+
+# For submit it: 1 node, 4 gpus per node, mp_d: True
+
+# SLURM options
+workers: 4
+timeout: 3600
+partition: "v100*"
+world_size: -1
+dist_backend: "nccl"
+gpu: null
+
+# SLURM/Submitit Arguments
+slurm_job_name: "SEED"
+comment: "SEED run" # for slurm
+job_dir: "slurm_log/seed_%j"  # log_ddp/%j
+master_addr: "127.0.0.1"  # this is the value used in Janne's implementation
+walltime: 2879  # in minutes (max walltime on Longhorn is 2,880 minutes)
+
+# train options
+seed: null  # setting a seed will set cudnn.deterministic = True, which can slow down training
+batch_size: 64  # I override this in the bash script
+image_size: 224
+start_epoch: 0
+epochs: 200
+dataset: "MSLUnlabeled"
+#dataset_dir: "/home/08328/isaacrw/clover_shared/datasets/msl_images/"
+dataset_dir: "/home/08328/isaacrw/clover_shared/datasets/msl_images_mahli_mastcams/"
+train_file_map: ""
+test_file_map: ""
+train_pct: 1.0
+num_images: 100000
+
+print_freq: 10  # how often to print progress
+
+# wandb & tensorboard configs
+use_wandb: True  # whether to use weights and biases
+tensorboard_log_dir: null  # None by default
+wandb_project: "seed_distill_msl_100k"  # WandB project name; unused if use_wandb = False
+wandb_run_id: null
+
+# model options
+student_arch: ""  # student encoder architecture
+student_weights: False
+teacher_arch: ""
+teacher_ssl: "simclr"  # choose the SSL pretrained method: simclr, moco or swav
+teacher_weights: ""
+dim: 128  # this was called moco_dim in the moco repo; this is the size of the teacher and student's embeddings
+student_mlp: true  # use MLP head
+resume: ""  # if specified, will resume from a previous checkpoint
+model_path: "distillation_100k"  # saves checkpoints to this folder
+# TODO: add_proj_out_layer for simclr resnets; note that we need to set dim: 1000 for this to work
+
+# MoCo recommended LR scaling recipe: https://arxiv.org/abs/1706.02677
+# Rule: "When the minibatch size is multiplied by k, multiply the learning rate by k"
+optimizer: "SGD"
+weight_decay: 1.0e-4
+learning_rate: 0.03  # initial learning rate
+momentum: 0.9
+cos: True  # cosine lr schedule true for MoCov2; false for MoCov1
+schedule:
+  - 120
+  - 160
+# queue size; this was moco_k in the moco repo; number of negative keys
+queue: 65536  # Note that K needs to be divisible by batch size!!!
+temp: 0.2  # 0.07 for MoCov1  # used to be moco_t in the moco repo
+mlp: True  # use mlp head; True in MoCov2, false in MoCov1
+aug_plus: True  # true by default in MoCov2, false in MoCov1
+distill_t: 0.01  # softmax temp for distillation (default=1.0e-4)
