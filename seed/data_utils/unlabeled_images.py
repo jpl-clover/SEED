@@ -111,6 +111,7 @@ class UnlabeledImageDataset(DatasetFolder):
                 for s in self.samples
                 if self.classes[s[1]] in class_to_idx
             ]
+            self.targets = [s[1] for s in self.samples]            
             self.classes = classes
             self.class_to_idx = class_to_idx
 
